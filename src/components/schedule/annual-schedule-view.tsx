@@ -1,0 +1,238 @@
+'use client';
+
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+type EmployeeItem = {
+  id: string;
+  name: string;
+  department: string;
+  shift_group: string;
+  role: string;
+};
+
+type Props = {
+  employees: EmployeeItem[];
+};
+
+type ShiftType = '주' | '야' | '휴' | '특근' | '연차';
+
+const SHIFT_COLORS: Record<string, string> = {
+  '주': 'bg-blue-100 text-blue-800',
+  '야': 'bg-gray-800 text-white',
+  '휴': 'bg-gray-100 text-gray-400',
+  '특근': 'bg-green-100 text-green-800',
+  '연차': 'bg-orange-100 text-orange-800',
+};
+
+const SHIFT_CYCLE: ShiftType[] = ['주', '야', '휴', '특근', '연차'];
+
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function toDateStr(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function AnnualScheduleView({ employees }: Props): React.ReactElement {
+  const [year] = useState(2026);
+  const [month, setMonth] = useState(new Date().getMonth());
+  const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [scheduleMap, setScheduleMap] = useState<Record<string, ShiftType>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const daysInMonth = getDaysInMonth(year, month);
+  const dates = useMemo(() => {
+    return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
+  }, [year, month, daysInMonth]);
+
+  const filtered = employees.filter(
+    (e) => selectedDept === 'all' || e.department === selectedDept,
+  );
+
+  // DB에서 월별 스케줄 로드
+  const loadSchedules = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/work-schedules?year=${year}&month=${month + 1}`);
+      const data: { employee_id: string; date: string; shift_type: ShiftType }[] = await res.json();
+
+      const map: Record<string, ShiftType> = {};
+      for (const row of data) {
+        map[`${row.employee_id}_${row.date}`] = row.shift_type;
+      }
+      setScheduleMap(map);
+    } catch {
+      setScheduleMap({});
+    } finally {
+      setLoading(false);
+    }
+  }, [year, month]);
+
+  useEffect(() => {
+    loadSchedules();
+  }, [loadSchedules]);
+
+  // 셀 클릭: 근무 타입 순환 + DB 저장
+  async function handleCellClick(employeeId: string, date: Date): Promise<void> {
+    const dateStr = toDateStr(date.getFullYear(), date.getMonth(), date.getDate());
+    const key = `${employeeId}_${dateStr}`;
+    const current = scheduleMap[key] ?? '휴';
+    const nextIdx = (SHIFT_CYCLE.indexOf(current) + 1) % SHIFT_CYCLE.length;
+    const next = SHIFT_CYCLE[nextIdx];
+
+    // 즉시 UI 반영
+    setScheduleMap((prev) => ({ ...prev, [key]: next }));
+    setSaving(key);
+
+    try {
+      await fetch('/api/work-schedules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employee_id: employeeId, date: dateStr, shift_type: next }),
+      });
+    } catch {
+      // 실패 시 되돌리기
+      setScheduleMap((prev) => ({ ...prev, [key]: current }));
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  // 일별 근무 인원 집계 (DB 데이터 기반)
+  const dailyCounts = useMemo(() => {
+    return dates.map((date) => {
+      const dateStr = toDateStr(date.getFullYear(), date.getMonth(), date.getDate());
+      let day = 0;
+      let night = 0;
+      filtered.forEach((emp) => {
+        const shift = scheduleMap[`${emp.id}_${dateStr}`];
+        if (shift === '주' || shift === '특근') day++;
+        if (shift === '야') night++;
+      });
+      return { day, night };
+    });
+  }, [dates, filtered, scheduleMap]);
+
+  return (
+    <div className="space-y-4">
+      {/* 월 선택 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-1">
+          {Array.from({ length: 12 }, (_, i) => (
+            <Button key={i} variant={month === i ? 'default' : 'outline'} size="sm"
+              onClick={() => setMonth(i)} className="w-10">
+              {i + 1}
+            </Button>
+          ))}
+        </div>
+        {loading && <span className="text-muted-foreground text-sm">로딩...</span>}
+      </div>
+
+      {/* 부서 필터 */}
+      <div className="flex flex-wrap gap-2">
+        {['all', '생산1팀PET', '생산1팀PE', '생산2팀'].map((dept) => (
+          <button key={dept} onClick={() => setSelectedDept(dept)}
+            className={cn('rounded-md px-3 py-1.5 text-sm font-medium',
+              selectedDept === dept ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+            {dept === 'all' ? '전체' : dept}
+          </button>
+        ))}
+        <span className="text-muted-foreground ml-auto self-center text-sm">
+          {filtered.length}명 | {year}년 {month + 1}월
+        </span>
+      </div>
+
+      {/* 스케줄 그리드 */}
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="text-xs">
+            <thead>
+              <tr className="border-b bg-gray-50">
+                <th className="sticky left-0 z-10 bg-gray-50 px-2 py-2 text-left min-w-[70px]">이름</th>
+                <th className="sticky left-[70px] z-10 bg-gray-50 px-1 py-2 text-center min-w-[30px]">조</th>
+                {dates.map((d) => {
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                  return (
+                    <th key={d.getDate()}
+                      className={cn('min-w-[28px] px-0 py-2 text-center', isWeekend && 'bg-red-50 text-red-600')}>
+                      {d.getDate()}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((emp) => (
+                <tr key={emp.id} className="border-b last:border-0">
+                  <td className="sticky left-0 z-10 bg-white px-2 py-1 font-medium whitespace-nowrap">
+                    {emp.name}
+                  </td>
+                  <td className="sticky left-[70px] z-10 bg-white px-1 py-1 text-center">
+                    <Badge variant="outline" className="text-xs">{emp.shift_group}</Badge>
+                  </td>
+                  {dates.map((d) => {
+                    const dateStr = toDateStr(d.getFullYear(), d.getMonth(), d.getDate());
+                    const key = `${emp.id}_${dateStr}`;
+                    const shiftType = scheduleMap[key] ?? '';
+                    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                    const isSavingThis = saving === key;
+
+                    return (
+                      <td key={d.getDate()}
+                        className={cn('px-0 py-1 text-center cursor-pointer', isWeekend && 'bg-red-50/30')}
+                        onClick={() => handleCellClick(emp.id, d)}>
+                        {shiftType ? (
+                          <span className={cn(
+                            'inline-block w-6 rounded text-center text-xs font-medium leading-5',
+                            SHIFT_COLORS[shiftType] ?? 'bg-gray-50',
+                            isSavingThis && 'opacity-50',
+                          )}>
+                            {shiftType}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {/* 일별 집계 */}
+              <tr className="border-t-2 bg-gray-50 font-semibold">
+                <td className="sticky left-0 z-10 bg-gray-50 px-2 py-1">주간</td>
+                <td className="sticky left-[70px] z-10 bg-gray-50"></td>
+                {dailyCounts.map((c, i) => (
+                  <td key={i} className="px-0 py-1 text-center text-blue-700">{c.day}</td>
+                ))}
+              </tr>
+              <tr className="bg-gray-50 font-semibold">
+                <td className="sticky left-0 z-10 bg-gray-50 px-2 py-1">야간</td>
+                <td className="sticky left-[70px] z-10 bg-gray-50"></td>
+                {dailyCounts.map((c, i) => (
+                  <td key={i} className="px-0 py-1 text-center text-gray-600">{c.night}</td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* 범례 */}
+      <div className="flex gap-3 text-xs">
+        {Object.entries(SHIFT_COLORS).map(([type, color]) => (
+          <span key={type} className="flex items-center gap-1">
+            <span className={cn('inline-block h-4 w-4 rounded', color)}></span>
+            {type === '주' ? '주간' : type === '야' ? '야간' : type === '휴' ? '휴무' : type === '특근' ? '특근' : '연차'}
+          </span>
+        ))}
+        <span className="text-muted-foreground ml-2">셀 클릭으로 변경 (자동 저장)</span>
+      </div>
+    </div>
+  );
+}

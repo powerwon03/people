@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# data files (원본 Excel)
+/data/
+
+# supabase
+.supabase/
+
+# playwright
+/test-results/
+/playwright-report/

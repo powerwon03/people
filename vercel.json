@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "regions": ["icn1"],
+  "crons": [
+    {
+      "path": "/api/cron/deadline-reminder",
+      "schedule": "0 8 * * 1-5"
+    }
+  ]
+}
