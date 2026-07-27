@@ -115,109 +115,74 @@ function determineCrossType(
   return '대';
 }
 
-/**
- * 크로스배치 제안: 과잉 부서에서 부족 부서로 인원 이동 제안
- */
-export function suggestCrossAssignments(
-  gaps: Record<string, number>,
-  employees: AvailableEmployee[],
-): EmployeeAssignment[] {
-  const suggestions: EmployeeAssignment[] = [];
-  const grouped = getAvailableByDepartment(employees);
-
-  // 부족 부서 찾기
-  const deficitDepts = Object.entries(gaps)
-    .filter(([, gap]) => gap < 0)
-    .sort(([, a], [, b]) => a - b); // 가장 부족한 부서 우선
-
-  // 과잉 부서 찾기
-  const surplusDepts = Object.entries(gaps)
-    .filter(([, gap]) => gap > 0)
-    .sort(([, a], [, b]) => b - a); // 가장 과잉인 부서 우선
-
-  if (deficitDepts.length === 0 || surplusDepts.length === 0) {
-    return [];
-  }
-
-  // 과잉 부서에서 부족 부서로 인원 이동 제안
-  const remainingSurplus: Record<string, number> = {};
-  surplusDepts.forEach(([dept, gap]) => { remainingSurplus[dept] = gap; });
-
-  for (const [deficitDept, deficitGap] of deficitDepts) {
-    let needed = Math.abs(deficitGap);
-
-    for (const [surplusDept] of surplusDepts) {
-      if (needed <= 0 || (remainingSurplus[surplusDept] ?? 0) <= 0) continue;
-
-      const available = grouped[surplusDept] ?? [];
-      // 검사원부터 이동 (역할 역순 - 핵심 인력은 유지)
-      const candidates = [...available]
-        .sort((a, b) => rolePriority(b.role) - rolePriority(a.role))
-        .filter((e) => e.role !== '반장'); // 반장은 이동 불가
-
-      const moveCount = Math.min(needed, remainingSurplus[surplusDept] ?? 0);
-
-      for (let i = 0; i < moveCount && i < candidates.length; i++) {
-        const emp = candidates[i];
-        suggestions.push({
-          employee_id: emp.id,
-          employee_name: emp.name,
-          department: emp.department,
-          role: emp.role,
-          affiliation: emp.affiliation,
-          assigned_department: deficitDept as Department,
-          assigned_sub_department: deficitDept === '생산1팀PE' ? 'PE'
-            : deficitDept === '생산1팀PET' ? 'PET'
-            : null,
-          is_cross_assigned: true,
-          cross_from: determineCrossType(emp.department, deficitDept as Department),
-        });
-        needed--;
-        remainingSurplus[surplusDept] = (remainingSurplus[surplusDept] ?? 0) - 1;
-      }
-    }
-  }
-
-  return suggestions;
-}
 
 /**
  * 자동 배치 메인 함수
+ * 인원산출 결과의 필요인원만큼만 배치하고, 부족 시 크로스배치
  */
 export function assignEmployees(input: AssignmentInput): AssignmentResult {
   const grouped = getAvailableByDepartment(input.available_employees);
   const required = getDepartmentRequired(input);
   const allAssignments: EmployeeAssignment[] = [];
 
-  // 1단계: 각 부서에 소속 직원 기본 배치
-  const petEmployees = grouped['생산1팀PET'] ?? [];
-  const peEmployees = grouped['생산1팀PE'] ?? [];
-  const team2Employees = grouped['생산2팀'] ?? [];
+  const departments: { dept: Department; subDept: 'PE' | 'PET' | null }[] = [
+    { dept: '생산1팀PET', subDept: 'PET' },
+    { dept: '생산1팀PE', subDept: 'PE' },
+    { dept: '생산2팀', subDept: null },
+  ];
 
-  allAssignments.push(...assignToDepartment(petEmployees, '생산1팀PET', 'PET'));
-  allAssignments.push(...assignToDepartment(peEmployees, '생산1팀PE', 'PE'));
-  allAssignments.push(...assignToDepartment(team2Employees, '생산2팀', null));
+  // 각 부서에서 배치되지 않은 잔여 인원 추적
+  const remainingByDept: Record<string, AvailableEmployee[]> = {};
 
-  // 2단계: 과부족 계산
-  const gaps: Record<string, number> = {
-    '생산1팀PET': calculateGap(petEmployees.length, required['생산1팀PET']),
-    '생산1팀PE': calculateGap(peEmployees.length, required['생산1팀PE']),
-    '생산2팀': calculateGap(team2Employees.length, required['생산2팀']),
-  };
+  // 1단계: 각 부서에 필요인원만큼만 소속 직원 배치
+  for (const { dept, subDept } of departments) {
+    const available = sortByPriority(grouped[dept] ?? []);
+    const need = required[dept];
+    const toAssign = available.slice(0, need);
+    const leftover = available.slice(need);
 
-  // 3단계: 크로스배치 적용
-  const crossAssignments = suggestCrossAssignments(gaps, input.available_employees);
-  for (const cross of crossAssignments) {
-    // 기본 배치에서 해당 직원 찾아서 크로스배치로 변경
-    const idx = allAssignments.findIndex(
-      (a) => a.employee_id === cross.employee_id && !a.is_cross_assigned,
-    );
-    if (idx !== -1) {
-      allAssignments[idx] = cross;
+    allAssignments.push(...assignToDepartment(toAssign, dept, subDept));
+    remainingByDept[dept] = leftover;
+  }
+
+  // 2단계: 부족 부서에 크로스배치 (다른 부서의 잔여 인원에서 충원)
+  for (const { dept, subDept } of departments) {
+    const assignedCount = allAssignments.filter((a) => a.assigned_department === dept).length;
+    let deficit = required[dept] - assignedCount;
+    if (deficit <= 0) continue;
+
+    // 잔여 인원이 있는 다른 부서에서 충원 (같은 팀 우선: 1팀PE↔PET)
+    const crossOrder = getCrossOrder(dept);
+    for (const fromDept of crossOrder) {
+      if (deficit <= 0) break;
+      const candidates = remainingByDept[fromDept] ?? [];
+      // 반장은 이동 불가, 역할 역순 (검사원부터 이동)
+      const movable = [...candidates]
+        .sort((a, b) => rolePriority(b.role) - rolePriority(a.role))
+        .filter((e) => e.role !== '반장');
+
+      const moveCount = Math.min(deficit, movable.length);
+      for (let i = 0; i < moveCount; i++) {
+        const emp = movable[i];
+        allAssignments.push({
+          employee_id: emp.id,
+          employee_name: emp.name,
+          department: emp.department,
+          role: emp.role,
+          affiliation: emp.affiliation,
+          assigned_department: dept,
+          assigned_sub_department: subDept,
+          is_cross_assigned: true,
+          cross_from: determineCrossType(emp.department, dept),
+        });
+        // 잔여 목록에서 제거
+        remainingByDept[fromDept] = remainingByDept[fromDept].filter((e) => e.id !== emp.id);
+        deficit--;
+      }
     }
   }
 
-  // 4단계: 요약 생성
+  // 3단계: 요약 생성
   const summary = buildSummary(allAssignments, required);
 
   return {
@@ -227,6 +192,17 @@ export function assignEmployees(input: AssignmentInput): AssignmentResult {
     assignments: allAssignments,
     summary,
   };
+}
+
+/**
+ * 크로스배치 충원 우선순위: 같은 팀(1팀 내) 우선, 그 다음 타 팀
+ */
+function getCrossOrder(targetDept: Department): Department[] {
+  switch (targetDept) {
+    case '생산1팀PET': return ['생산1팀PE', '생산2팀'];
+    case '생산1팀PE': return ['생산1팀PET', '생산2팀'];
+    case '생산2팀': return ['생산1팀PET', '생산1팀PE'];
+  }
 }
 
 /**

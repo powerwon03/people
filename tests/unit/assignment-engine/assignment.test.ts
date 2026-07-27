@@ -3,7 +3,6 @@ import {
   assignEmployees,
   calculateGap,
   getAvailableByDepartment,
-  suggestCrossAssignments,
 } from '@/lib/assignment-engine/assigner';
 import type {
   AvailableEmployee,
@@ -182,45 +181,54 @@ describe('자동 배치 엔진', () => {
     });
   });
 
-  describe('suggestCrossAssignments - 크로스배치 제안', () => {
-    it('1팀 부족 + 2팀 과잉 시 2팀→1팀 크로스배치 제안', () => {
-      const suggestions = suggestCrossAssignments(
-        { '생산1팀PET': -2, '생산1팀PE': 0, '생산2팀': 3 },
-        createTestEmployees(),
-      );
-
-      const crossFrom2 = suggestions.filter((s) => s.cross_from === '2');
-      expect(crossFrom2.length).toBeGreaterThan(0);
-    });
-
-    it('PE 부족 + PET 과잉 시 PET→PE 크로스배치 제안', () => {
-      const suggestions = suggestCrossAssignments(
-        { '생산1팀PET': 2, '생산1팀PE': -1, '생산2팀': 0 },
-        createTestEmployees(),
-      );
-
-      const crossFromPET = suggestions.filter((s) => s.cross_from === 'pet');
-      expect(crossFromPET.length).toBeGreaterThan(0);
-    });
-
-    it('모든 부서 과부족 없으면 빈 배열 반환', () => {
-      const suggestions = suggestCrossAssignments(
-        { '생산1팀PET': 0, '생산1팀PE': 0, '생산2팀': 0 },
-        createTestEmployees(),
-      );
-      expect(suggestions).toHaveLength(0);
-    });
-
-    it('크로스배치 제안에 원래 소속 표기가 포함된다', () => {
-      const suggestions = suggestCrossAssignments(
-        { '생산1팀PET': -1, '생산1팀PE': 0, '생산2팀': 2 },
-        createTestEmployees(),
-      );
-
-      suggestions.forEach((s) => {
-        expect(s.is_cross_assigned).toBe(true);
-        expect(s.cross_from).not.toBeNull();
+  describe('assignEmployees - 필요인원만큼만 배치', () => {
+    it('인원산출 결과의 필요인원만 배치한다', () => {
+      const employees = createTestEmployees(); // PET 8명, PE 1명, 2팀 7명
+      const result = assignEmployees({
+        date: '2026-07-01',
+        shift: '주간',
+        template: '평일',
+        staffing_result_factory1: createFactory1Result(5), // PET 4 + PE 1 = 5
+        staffing_result_factory2: createFactory2Result(3),
+        available_employees: employees,
       });
+
+      // 총 배치 = 1공장 5 + 2공장 3 = 8명 (16명 전원 아님)
+      expect(result.summary.total_assigned).toBe(8);
+    });
+
+    it('가용인원이 부족하면 크로스배치로 충원한다', () => {
+      const employees = createTestEmployees(); // PE 1명뿐
+      const result = assignEmployees({
+        date: '2026-07-01',
+        shift: '주간',
+        template: '평일',
+        staffing_result_factory1: createFactory1Result(10), // PE 2명 필요
+        staffing_result_factory2: createFactory2Result(3),
+        available_employees: employees,
+      });
+
+      const peCross = result.assignments.filter(
+        (a) => a.assigned_department === '생산1팀PE' && a.is_cross_assigned,
+      );
+      expect(peCross.length).toBeGreaterThan(0);
+    });
+
+    it('크로스배치 시 반장은 이동하지 않는다', () => {
+      const employees = createTestEmployees();
+      const result = assignEmployees({
+        date: '2026-07-01',
+        shift: '주간',
+        template: '평일',
+        staffing_result_factory1: createFactory1Result(10),
+        staffing_result_factory2: createFactory2Result(3),
+        available_employees: employees,
+      });
+
+      const crossLeaders = result.assignments.filter(
+        (a) => a.is_cross_assigned && a.role === '반장',
+      );
+      expect(crossLeaders).toHaveLength(0);
     });
   });
 
