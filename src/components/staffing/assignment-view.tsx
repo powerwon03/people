@@ -187,8 +187,15 @@ export function AssignmentView({ employees }: Props): React.ReactElement {
     let noCalcWarning = false;
 
     try {
+      // 해당 날짜가 포함된 주의 월요일 계산
+      const targetDate = new Date(selectedDate + 'T00:00:00');
+      const dayOfWeek = targetDate.getDay();
+      const mondayDiff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      targetDate.setDate(targetDate.getDate() + mondayDiff);
+      const weekStart = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+
       // 최신 생산계획의 산출 결과 가져오기
-      const plansRes = await fetch(`/api/production-plans?week_start=${selectedDate.substring(0, 8)}01`);
+      const plansRes = await fetch(`/api/production-plans?week_start=${weekStart}`);
       const plans = await plansRes.json();
 
       // 해당 날짜를 포함하는 계획 찾기
