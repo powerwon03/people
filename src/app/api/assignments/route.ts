@@ -48,11 +48,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   };
 
   // 기존 배치 삭제
-  await supabase
+  const { error: deleteError } = await supabase
     .from('saehan_worker_assignments')
     .delete()
     .eq('date', date)
     .eq('shift', shift);
+
+  if (deleteError) {
+    return NextResponse.json({ error: `기존 배치 삭제 실패: ${deleteError.message}` }, { status: 500 });
+  }
 
   if (assignments.length > 0) {
     const rows = assignments.map((a) => ({
