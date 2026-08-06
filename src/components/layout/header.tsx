@@ -21,7 +21,7 @@ export function Header(): React.ReactElement {
       {/* 모바일 메뉴 */}
       <div className="lg:hidden">
         <Sheet>
-          <SheetTrigger className="rounded-md p-2 hover:bg-gray-100">
+          <SheetTrigger className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-gray-100">
             <svg
               className="h-6 w-6"
               fill="none"

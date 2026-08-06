@@ -344,41 +344,45 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
   return (
     <div className="space-y-4">
       {/* 컨트롤바 */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" onClick={() => { setCurrentWeekOffset((v) => v - 1); setEditingCell(null); }}>← 이전주</Button>
-          <Button variant="outline" size="sm" onClick={() => { setCurrentWeekOffset(0); setEditingCell(null); }}>이번주</Button>
-          <Button variant="outline" size="sm" onClick={() => { setCurrentWeekOffset((v) => v + 1); setEditingCell(null); }}>다음주 →</Button>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => { setCurrentWeekOffset((v) => v - 1); setEditingCell(null); }}>←</Button>
+            <Button variant="outline" size="sm" onClick={() => { setCurrentWeekOffset(0); setEditingCell(null); }}>이번주</Button>
+            <Button variant="outline" size="sm" onClick={() => { setCurrentWeekOffset((v) => v + 1); setEditingCell(null); }}>→</Button>
+          </div>
+          <div className="flex gap-1">
+            {(['주간', '야간'] as const).map((s) => (
+              <Button key={s} variant={shift === s ? 'default' : 'outline'} size="sm" onClick={() => { setShift(s); setEditingCell(null); }}>{s}</Button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => setSelectedFactory('all')}
+              className={cn('rounded-md px-3 py-1.5 text-sm font-medium min-h-[36px]', selectedFactory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>전체</button>
+            {factories.map((f) => (
+              <button key={f.id} onClick={() => setSelectedFactory(f.id)}
+                className={cn('rounded-md px-3 py-1.5 text-sm font-medium min-h-[36px]', selectedFactory === f.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{f.name}</button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-1">
-          {(['주간', '야간'] as const).map((s) => (
-            <Button key={s} variant={shift === s ? 'default' : 'outline'} size="sm" onClick={() => { setShift(s); setEditingCell(null); }}>{s}</Button>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          <button onClick={() => setSelectedFactory('all')}
-            className={cn('rounded-md px-3 py-1.5 text-sm font-medium', selectedFactory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>전체</button>
-          {factories.map((f) => (
-            <button key={f.id} onClick={() => setSelectedFactory(f.id)}
-              className={cn('rounded-md px-3 py-1.5 text-sm font-medium', selectedFactory === f.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{f.name}</button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {planId && <Badge variant={planStatus === '확정' ? 'default' : 'secondary'}>{planStatus}</Badge>}
           {loading && <span className="text-muted-foreground text-sm">로딩...</span>}
           {saveMessage && <span className={cn('text-sm', saveMessage.startsWith('오류') || saveMessage.includes('실패') || saveMessage.includes('오류') ? 'text-red-500' : 'text-green-600')}>{saveMessage}</span>}
           {isReadOnly && <span className="text-sm text-amber-600 font-medium">확정된 계획 (수정 불가)</span>}
-          <Button size="sm" variant="outline" onClick={downloadTemplate}>
-            CSV 다운로드
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading || isReadOnly}>
-            {uploading ? '업로드 중...' : 'CSV 업로드'}
-          </Button>
-          <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
-          <Button size="sm" onClick={handleSave} disabled={saving || isReadOnly || Object.keys(cells).length === 0} variant={hasChanges ? 'default' : 'outline'}>
-            {saving ? '저장 중...' : hasChanges ? '변경사항 저장' : '잠정 저장'}
-          </Button>
-          <span className="text-muted-foreground text-sm">{filteredEquipment.length}대 | {shift}</span>
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <Button size="sm" variant="outline" onClick={downloadTemplate}>
+              CSV 다운로드
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading || isReadOnly}>
+              {uploading ? '업로드 중...' : 'CSV 업로드'}
+            </Button>
+            <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
+            <Button size="sm" onClick={handleSave} disabled={saving || isReadOnly || Object.keys(cells).length === 0} variant={hasChanges ? 'default' : 'outline'}>
+              {saving ? '저장 중...' : hasChanges ? '변경사항 저장' : '잠정 저장'}
+            </Button>
+            <span className="text-muted-foreground text-sm">{filteredEquipment.length}대 | {shift}</span>
+          </div>
         </div>
       </div>
 
@@ -388,11 +392,11 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-20">
               <tr className="border-b bg-gray-50">
-                <th className="sticky left-0 z-30 bg-gray-50 px-3 py-2 text-left font-medium min-w-[80px]">설비</th>
+                <th className="sticky left-0 z-30 bg-gray-50 px-2 py-2 text-left font-medium min-w-[60px] sm:min-w-[80px]">설비</th>
                 {weekDates.map((d) => {
                   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                   return (
-                    <th key={d.toISOString()} className={cn('min-w-[120px] px-2 py-2 text-center font-medium', isWeekend ? 'bg-red-50 text-red-600' : 'bg-gray-50')}>
+                    <th key={d.toISOString()} className={cn('min-w-[80px] sm:min-w-[120px] px-1 sm:px-2 py-2 text-center font-medium', isWeekend ? 'bg-red-50 text-red-600' : 'bg-gray-50')}>
                       <div>{formatDate(d)}</div>
                       <div className="text-xs font-normal">({formatDay(d)})</div>
                     </th>
@@ -436,7 +440,7 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
                               {cell.status}
                             </Badge>
                             {cell.product_name && (
-                              <div className="text-[10px] text-gray-600 mt-0.5 truncate max-w-[110px] mx-auto" title={cell.product_name}>
+                              <div className="text-[10px] text-gray-600 mt-0.5 truncate max-w-[70px] sm:max-w-[110px] mx-auto" title={cell.product_name}>
                                 {shortProductName(cell.product_name)}
                               </div>
                             )}
@@ -447,7 +451,7 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
 
                         {/* 편집 팝업 */}
                         {isEditing && (
-                          <div className="absolute top-full left-0 z-20 mt-1 w-56 rounded-md border bg-white p-2 shadow-lg text-left"
+                          <div className="fixed inset-x-4 bottom-4 z-50 sm:absolute sm:inset-auto sm:top-full sm:left-0 sm:bottom-auto sm:w-56 mt-1 rounded-md border bg-white p-3 sm:p-2 shadow-lg text-left"
                             onClick={(e) => e.stopPropagation()}>
                             {/* 상태 선택 */}
                             <div className="mb-2">
@@ -455,7 +459,7 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
                               <div className="flex flex-wrap gap-1">
                                 {ALL_STATUSES.map((s) => (
                                   <button key={s} onClick={() => handleSetStatus(eq.id, dateStr, s)}
-                                    className={cn('rounded px-1.5 py-0.5 text-xs', cell?.status === s ? STATUS_COLORS[s] + ' ring-1 ring-gray-400' : 'bg-gray-50 hover:bg-gray-100')}>
+                                    className={cn('rounded px-2 py-1.5 text-xs min-h-[36px]', cell?.status === s ? STATUS_COLORS[s] + ' ring-1 ring-gray-400' : 'bg-gray-50 hover:bg-gray-100')}>
                                     {s}
                                   </button>
                                 ))}

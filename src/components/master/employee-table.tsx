@@ -179,14 +179,14 @@ export function EmployeeTable({ employees }: Props): React.ReactElement {
       </div>
 
       {/* 조 필터 + 검색 + 추가 버튼 */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
         <div className="flex gap-1">
           {['all', ...SHIFT_GROUPS].map((g) => (
             <button
               key={g}
               onClick={() => setSelectedGroup(g)}
               className={cn(
-                'rounded-md px-2.5 py-1 text-sm font-medium transition-colors',
+                'rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors min-h-[36px]',
                 selectedGroup === g ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80',
               )}
             >
@@ -289,33 +289,33 @@ export function EmployeeTable({ employees }: Props): React.ReactElement {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium">이름</th>
-                <th className="px-4 py-3 text-left font-medium">부서</th>
-                <th className="px-4 py-3 text-center font-medium">조</th>
-                <th className="px-4 py-3 text-left font-medium">역할</th>
-                <th className="px-4 py-3 text-center font-medium">성별</th>
-                <th className="px-4 py-3 text-left font-medium">소속</th>
-                <th className="px-4 py-3 text-center font-medium">사물함</th>
-                <th className="px-4 py-3 text-center font-medium">관리</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium">이름</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium hidden sm:table-cell">부서</th>
+                <th className="px-3 sm:px-4 py-3 text-center font-medium">조</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium">역할</th>
+                <th className="px-3 sm:px-4 py-3 text-center font-medium hidden md:table-cell">성별</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium">소속</th>
+                <th className="px-3 sm:px-4 py-3 text-center font-medium hidden md:table-cell">사물함</th>
+                <th className="px-3 sm:px-4 py-3 text-center font-medium">관리</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((emp) => (
                 <tr key={emp.id} className="border-b last:border-0 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{emp.name}</td>
-                  <td className="px-4 py-3">{emp.department}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 sm:px-4 py-3 font-medium">{emp.name}</td>
+                  <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">{emp.department}</td>
+                  <td className="px-3 sm:px-4 py-3 text-center">
                     <Badge variant="outline">{emp.shift_group}조</Badge>
                   </td>
-                  <td className="px-4 py-3">{emp.role}</td>
-                  <td className="px-4 py-3 text-center">{emp.gender === 'M' ? '남' : '여'}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 sm:px-4 py-3">{emp.role}</td>
+                  <td className="px-3 sm:px-4 py-3 text-center hidden md:table-cell">{emp.gender === 'M' ? '남' : '여'}</td>
+                  <td className="px-3 sm:px-4 py-3">
                     <Badge variant={emp.affiliation === '새한' ? 'default' : 'secondary'}>
                       {emp.affiliation}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-center font-mono">{emp.locker_number ?? '-'}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 sm:px-4 py-3 text-center font-mono hidden md:table-cell">{emp.locker_number ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-center">
                     <div className="flex justify-center gap-1">
                       <Button size="sm" variant="ghost" onClick={() => openEdit(emp)}>
                         수정

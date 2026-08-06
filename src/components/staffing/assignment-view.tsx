@@ -423,21 +423,21 @@ export function AssignmentView({ employees }: Props): React.ReactElement {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50/50">
-                    <th className="px-4 py-2.5 text-left font-medium">이름</th>
-                    <th className="px-4 py-2.5 text-left font-medium">원소속</th>
-                    <th className="px-4 py-2.5 text-left font-medium">역할</th>
-                    <th className="px-4 py-2.5 text-left font-medium">배치부서</th>
-                    <th className="px-4 py-2.5 text-left font-medium">소속사</th>
-                    <th className="px-4 py-2.5 text-center font-medium">크로스</th>
+                    <th className="px-3 sm:px-4 py-2.5 text-left font-medium">이름</th>
+                    <th className="px-3 sm:px-4 py-2.5 text-left font-medium hidden sm:table-cell">원소속</th>
+                    <th className="px-3 sm:px-4 py-2.5 text-left font-medium">역할</th>
+                    <th className="px-3 sm:px-4 py-2.5 text-left font-medium">배치부서</th>
+                    <th className="px-3 sm:px-4 py-2.5 text-left font-medium hidden md:table-cell">소속사</th>
+                    <th className="px-3 sm:px-4 py-2.5 text-center font-medium">크로스</th>
                   </tr>
                 </thead>
                 <tbody>
                   {assignments.map((a) => (
                     <tr key={a.employee_id} className={cn('border-b last:border-0', a.is_cross_assigned && 'bg-yellow-50')}>
-                      <td className="px-4 py-2 font-medium">{a.employee_name}</td>
-                      <td className="px-4 py-2">{a.department}</td>
-                      <td className="px-4 py-2">{a.role}</td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 sm:px-4 py-2 font-medium">{a.employee_name}</td>
+                      <td className="px-3 sm:px-4 py-2 hidden sm:table-cell">{a.department}</td>
+                      <td className="px-3 sm:px-4 py-2">{a.role}</td>
+                      <td className="px-3 sm:px-4 py-2">
                         {editingId === a.employee_id ? (
                           <div className="flex items-center gap-1">
                             <select
@@ -460,12 +460,12 @@ export function AssignmentView({ employees }: Props): React.ReactElement {
                           </button>
                         )}
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 sm:px-4 py-2 hidden md:table-cell">
                         <Badge variant={a.affiliation === '새한' ? 'default' : 'secondary'}>
                           {a.affiliation}
                         </Badge>
                       </td>
-                      <td className="px-4 py-2 text-center">
+                      <td className="px-3 sm:px-4 py-2 text-center">
                         {a.is_cross_assigned ? (
                           <Badge variant="destructive">({a.cross_from})</Badge>
                         ) : (

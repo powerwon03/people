@@ -200,27 +200,27 @@ export function EquipmentTable({ equipment, factories, products }: Props): React
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium">코드</th>
-                <th className="px-4 py-3 text-left font-medium">설비명</th>
-                <th className="px-4 py-3 text-left font-medium">타입</th>
-                <th className="px-4 py-3 text-left font-medium">공장</th>
-                <th className="px-4 py-3 text-right font-medium">33k</th>
-                <th className="px-4 py-3 text-right font-medium">25k</th>
-                <th className="px-4 py-3 text-center font-medium">상태</th>
-                <th className="px-4 py-3 text-center font-medium">관리</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium">코드</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium hidden sm:table-cell">설비명</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium">타입</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium hidden md:table-cell">공장</th>
+                <th className="px-3 sm:px-4 py-3 text-right font-medium hidden md:table-cell">33k</th>
+                <th className="px-3 sm:px-4 py-3 text-right font-medium hidden md:table-cell">25k</th>
+                <th className="px-3 sm:px-4 py-3 text-center font-medium">상태</th>
+                <th className="px-3 sm:px-4 py-3 text-center font-medium">관리</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((eq) => (
                 <tr key={eq.id} className="border-b last:border-0 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono font-medium">{eq.code}</td>
-                  <td className="px-4 py-3">{eq.name ?? '-'}</td>
-                  <td className="px-4 py-3">{eq.type ?? '-'}</td>
-                  <td className="px-4 py-3">{eq.factory?.name ?? '-'}</td>
-                  <td className="px-4 py-3 text-right font-mono">{eq.air_usage_33k > 0 ? eq.air_usage_33k.toFixed(1) : '-'}</td>
-                  <td className="px-4 py-3 text-right font-mono">{eq.air_usage_25k > 0 ? eq.air_usage_25k.toFixed(1) : '-'}</td>
-                  <td className="px-4 py-3 text-center"><Badge variant={eq.is_active ? 'default' : 'secondary'}>{eq.is_active ? '가동' : '비가동'}</Badge></td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 sm:px-4 py-3 font-mono font-medium">{eq.code}</td>
+                  <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">{eq.name ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3">{eq.type ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 hidden md:table-cell">{eq.factory?.name ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-right font-mono hidden md:table-cell">{eq.air_usage_33k > 0 ? eq.air_usage_33k.toFixed(1) : '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-right font-mono hidden md:table-cell">{eq.air_usage_25k > 0 ? eq.air_usage_25k.toFixed(1) : '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-center"><Badge variant={eq.is_active ? 'default' : 'secondary'}>{eq.is_active ? '가동' : '비가동'}</Badge></td>
+                  <td className="px-3 sm:px-4 py-3 text-center">
                     <div className="flex justify-center gap-1">
                       <Button size="sm" variant="ghost" onClick={() => openProductPanel(eq.id)}>제품</Button>
                       <Button size="sm" variant="ghost" onClick={() => openEdit(eq)}>수정</Button>

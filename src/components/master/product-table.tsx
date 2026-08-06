@@ -147,27 +147,27 @@ export function ProductTable({ products }: Props): React.ReactElement {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium">제품명</th>
-                <th className="px-4 py-3 text-right font-medium">용량(ml)</th>
-                <th className="px-4 py-3 text-left font-medium">포장단위</th>
-                <th className="px-4 py-3 text-right font-medium">포장수량</th>
-                <th className="px-4 py-3 text-right font-medium">일생산량</th>
-                <th className="px-4 py-3 text-right font-medium">일 박스수</th>
-                <th className="px-4 py-3 text-right font-medium">12h 박스수</th>
-                <th className="px-4 py-3 text-center font-medium">관리</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium">제품명</th>
+                <th className="px-3 sm:px-4 py-3 text-right font-medium">용량(ml)</th>
+                <th className="px-3 sm:px-4 py-3 text-left font-medium hidden sm:table-cell">포장단위</th>
+                <th className="px-3 sm:px-4 py-3 text-right font-medium hidden sm:table-cell">포장수량</th>
+                <th className="px-3 sm:px-4 py-3 text-right font-medium hidden md:table-cell">일생산량</th>
+                <th className="px-3 sm:px-4 py-3 text-right font-medium hidden md:table-cell">일 박스수</th>
+                <th className="px-3 sm:px-4 py-3 text-right font-medium">12h 박스수</th>
+                <th className="px-3 sm:px-4 py-3 text-center font-medium">관리</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{p.name}</td>
-                  <td className="px-4 py-3 text-right font-mono">{p.volume_ml?.toLocaleString() ?? '-'}</td>
-                  <td className="px-4 py-3">{p.packaging_unit ?? '-'}</td>
-                  <td className="px-4 py-3 text-right font-mono">{p.packaging_unit_qty ?? '-'}</td>
-                  <td className="px-4 py-3 text-right font-mono">{p.daily_production_qty?.toLocaleString() ?? '-'}</td>
-                  <td className="px-4 py-3 text-right font-mono">{p.daily_box_count?.toFixed(1) ?? '-'}</td>
-                  <td className="px-4 py-3 text-right font-mono font-semibold">{p.box_count_12h?.toFixed(1) ?? '-'}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 sm:px-4 py-3 font-medium">{p.name}</td>
+                  <td className="px-3 sm:px-4 py-3 text-right font-mono">{p.volume_ml?.toLocaleString() ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">{p.packaging_unit ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-right font-mono hidden sm:table-cell">{p.packaging_unit_qty ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-right font-mono hidden md:table-cell">{p.daily_production_qty?.toLocaleString() ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-right font-mono hidden md:table-cell">{p.daily_box_count?.toFixed(1) ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-right font-mono font-semibold">{p.box_count_12h?.toFixed(1) ?? '-'}</td>
+                  <td className="px-3 sm:px-4 py-3 text-center">
                     <div className="flex justify-center gap-1">
                       <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>수정</Button>
                       <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(p.id, p.name)}>삭제</Button>

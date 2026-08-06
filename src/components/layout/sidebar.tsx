@@ -59,7 +59,7 @@ function NavContent(): React.ReactElement {
               key={section.title}
               href={section.href}
               className={cn(
-                'block rounded-md px-3 py-2 text-sm font-medium',
+                'block rounded-md px-3 py-2.5 text-sm font-medium min-h-[44px] flex items-center',
                 pathname === section.href
                   ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-muted',
@@ -81,7 +81,7 @@ function NavContent(): React.ReactElement {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'block rounded-md px-3 py-2 text-sm',
+                    'block rounded-md px-3 py-2.5 text-sm min-h-[44px] flex items-center',
                     pathname === item.href
                       ? 'bg-primary/10 text-primary font-medium'
                       : 'text-muted-foreground hover:bg-muted',

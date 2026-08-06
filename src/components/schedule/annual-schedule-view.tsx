@@ -153,7 +153,7 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
     <div className="space-y-4">
       {/* 월 선택 */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1">
+        <div className="grid grid-cols-6 gap-1 sm:flex">
           {Array.from({ length: 12 }, (_, i) => (
             <Button key={i} variant={month === i ? 'default' : 'outline'} size="sm"
               onClick={() => setMonth(i)} className="w-10">
@@ -165,10 +165,10 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
       </div>
 
       {/* 부서 필터 */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {['all', '생산1팀PET', '생산1팀PE', '생산2팀'].map((dept) => (
           <button key={dept} onClick={() => setSelectedDept(dept)}
-            className={cn('rounded-md px-3 py-1.5 text-sm font-medium',
+            className={cn('rounded-md px-3 py-2 text-sm font-medium min-h-[40px]',
               selectedDept === dept ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
             {dept === 'all' ? '전체' : dept}
           </button>
@@ -176,21 +176,21 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
       </div>
 
       {/* 역할별 구분 + 소속 필터 */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-medium text-gray-500 mr-1">역할:</span>
         {ROLE_FILTERS.map((rf) => (
           <button key={rf.value} onClick={() => setSelectedRole(rf.value)}
             title={rf.description}
-            className={cn('rounded-md px-2.5 py-1 text-xs font-medium',
+            className={cn('rounded-md px-2.5 py-1.5 text-xs font-medium min-h-[36px]',
               selectedRole === rf.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
             {rf.label}
           </button>
         ))}
-        <span className="mx-2 text-gray-300">|</span>
-        <span className="text-xs font-medium text-gray-500 mr-1">소속:</span>
+        <span className="mx-1 text-gray-300 hidden sm:inline">|</span>
+        <span className="text-xs font-medium text-gray-500 mr-1 w-full sm:w-auto mt-1 sm:mt-0">소속:</span>
         {(['all', '새한', '협력사'] as AffiliationFilter[]).map((af) => (
           <button key={af} onClick={() => setSelectedAffiliation(af)}
-            className={cn('rounded-md px-2.5 py-1 text-xs font-medium',
+            className={cn('rounded-md px-2.5 py-1.5 text-xs font-medium min-h-[36px]',
               selectedAffiliation === af ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
             {af === 'all' ? '전체' : af}
           </button>
@@ -203,16 +203,16 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
       {/* 스케줄 그리드 */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="text-xs">
+          <table className="text-xs sm:text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="sticky left-0 z-10 bg-gray-50 px-2 py-2 text-left min-w-[70px]">이름</th>
-                <th className="sticky left-[70px] z-10 bg-gray-50 px-1 py-2 text-center min-w-[30px]">조</th>
+                <th className="sticky left-0 z-10 bg-gray-50 px-1.5 sm:px-2 py-2 text-left min-w-[56px] sm:min-w-[70px]">이름</th>
+                <th className="sticky left-[56px] sm:left-[70px] z-10 bg-gray-50 px-1 py-2 text-center min-w-[28px] sm:min-w-[30px]">조</th>
                 {dates.map((d) => {
                   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                   return (
                     <th key={d.getDate()}
-                      className={cn('min-w-[28px] px-0 py-2 text-center', isWeekend && 'bg-red-50 text-red-600')}>
+                      className={cn('min-w-[24px] sm:min-w-[28px] px-0 py-2 text-center', isWeekend && 'bg-red-50 text-red-600')}>
                       {d.getDate()}
                     </th>
                   );
@@ -222,10 +222,10 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
             <tbody>
               {filtered.map((emp) => (
                 <tr key={emp.id} className="border-b last:border-0">
-                  <td className="sticky left-0 z-10 bg-white px-2 py-1 font-medium whitespace-nowrap">
+                  <td className="sticky left-0 z-10 bg-white px-1.5 sm:px-2 py-1.5 font-medium whitespace-nowrap">
                     {emp.name}
                   </td>
-                  <td className="sticky left-[70px] z-10 bg-white px-1 py-1 text-center">
+                  <td className="sticky left-[56px] sm:left-[70px] z-10 bg-white px-1 py-1.5 text-center">
                     <Badge variant="outline" className="text-xs">{emp.shift_group}</Badge>
                   </td>
                   {dates.map((d) => {
@@ -237,7 +237,7 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
 
                     return (
                       <td key={d.getDate()}
-                        className={cn('px-0 py-1 text-center cursor-pointer', isWeekend && 'bg-red-50/30')}
+                        className={cn('px-0 py-1.5 text-center cursor-pointer min-w-[24px] sm:min-w-[28px]', isWeekend && 'bg-red-50/30')}
                         onClick={() => handleCellClick(emp.id, d)}>
                         {shiftType ? (
                           <span className={cn(
@@ -257,15 +257,15 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
               ))}
               {/* 일별 집계 */}
               <tr className="border-t-2 bg-gray-50 font-semibold">
-                <td className="sticky left-0 z-10 bg-gray-50 px-2 py-1">주간</td>
-                <td className="sticky left-[70px] z-10 bg-gray-50"></td>
+                <td className="sticky left-0 z-10 bg-gray-50 px-1.5 sm:px-2 py-1">주간</td>
+                <td className="sticky left-[56px] sm:left-[70px] z-10 bg-gray-50"></td>
                 {dailyCounts.map((c, i) => (
                   <td key={i} className="px-0 py-1 text-center text-blue-700">{c.day}</td>
                 ))}
               </tr>
               <tr className="bg-gray-50 font-semibold">
-                <td className="sticky left-0 z-10 bg-gray-50 px-2 py-1">야간</td>
-                <td className="sticky left-[70px] z-10 bg-gray-50"></td>
+                <td className="sticky left-0 z-10 bg-gray-50 px-1.5 sm:px-2 py-1">야간</td>
+                <td className="sticky left-[56px] sm:left-[70px] z-10 bg-gray-50"></td>
                 {dailyCounts.map((c, i) => (
                   <td key={i} className="px-0 py-1 text-center text-gray-600">{c.night}</td>
                 ))}
