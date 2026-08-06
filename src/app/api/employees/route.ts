@@ -44,9 +44,10 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'id 필수' }, { status: 400 });
   }
 
+  // soft delete: 상태를 '퇴사'로 변경
   const { error } = await supabase
     .from('saehan_employees')
-    .delete()
+    .update({ status: '퇴사' })
     .eq('id', id);
 
   if (error) {

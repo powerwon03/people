@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -90,6 +90,11 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
   // 셀 편집 팝업
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [eqProducts, setEqProducts] = useState<Record<string, ProductItem[]>>({});
+  // 최근 변경된 셀 추적
+  const [recentlyChanged, setRecentlyChanged] = useState<Set<string>>(new Set());
+  // Excel 업로드
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const baseDate = useMemo(() => {
     const now = new Date();
@@ -208,7 +213,7 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
     return `${equipmentId}_${dateStr}_${shift}`;
   }
 
-  // 셀 클릭 → 편집 팝업 열기
+  // 셀 클릭 → 편집 팝업 열기 (즉시 등록하지 않음)
   async function handleCellClick(equipmentId: string, dateStr: string): Promise<void> {
     if (isReadOnly || isPastDate(dateStr)) return;
 
@@ -219,23 +224,42 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
     }
     setEditingCell(key);
 
-    // 셀이 없으면 기본값 생성
-    if (!cells[key]) {
-      setCells((prev) => ({ ...prev, [key]: { product_id: null, product_name: '', status: '가동' } }));
-      setHasChanges(true);
-    }
-
     // 해당 설비의 생산 가능 제품 로드
     await loadEquipmentProducts(equipmentId);
   }
 
-  function handleStatusChange(key: string, status: CellStatus): void {
-    setCells((prev) => ({ ...prev, [key]: { ...prev[key], status } }));
-    setHasChanges(true);
-    if (status !== '가동') {
-      // 가동이 아니면 제품 초기화
-      setCells((prev) => ({ ...prev, [key]: { ...prev[key], status, product_id: null, product_name: '' } }));
+  // 상태 선택 시에만 셀 생성 (빈칸 클릭만으로는 등록되지 않음)
+  function handleSetStatus(equipmentId: string, dateStr: string, status: CellStatus): void {
+    const key = getCellKey(equipmentId, dateStr);
+    const existing = cells[key];
+    if (existing) {
+      handleStatusChange(key, status);
+    } else {
+      setCells((prev) => ({ ...prev, [key]: { product_id: null, product_name: '', status } }));
+      setHasChanges(true);
     }
+    markRecentlyChanged(key);
+  }
+
+  function markRecentlyChanged(key: string): void {
+    setRecentlyChanged((prev) => new Set(prev).add(key));
+    setTimeout(() => {
+      setRecentlyChanged((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }, 3000);
+  }
+
+  function handleStatusChange(key: string, status: CellStatus): void {
+    if (status !== '가동') {
+      setCells((prev) => ({ ...prev, [key]: { ...prev[key], status, product_id: null, product_name: '' } }));
+    } else {
+      setCells((prev) => ({ ...prev, [key]: { ...prev[key], status } }));
+    }
+    setHasChanges(true);
+    markRecentlyChanged(key);
   }
 
   function handleProductChange(key: string, productId: string): void {
@@ -245,7 +269,66 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
       [key]: { ...prev[key], product_id: productId || null, product_name: product?.name ?? '' },
     }));
     setHasChanges(true);
+    markRecentlyChanged(key);
     setEditingCell(null);
+  }
+
+  // Excel 업로드 처리
+  async function handleExcelUpload(e: React.ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setSaveMessage('');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('week_start_date', mondayStr);
+    formData.append('shift', shift);
+
+    try {
+      const res = await fetch('/api/production-plans/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        setSaveMessage(`업로드 완료: ${result.count}건 반영`);
+        await loadPlan();
+      } else {
+        const err = await res.json();
+        setSaveMessage(`업로드 오류: ${err.error}`);
+      }
+    } catch {
+      setSaveMessage('업로드 중 오류');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  // Excel 템플릿 다운로드
+  function downloadTemplate(): void {
+    const headers = ['설비코드', ...weekDates.map((d) => toLocalDateStr(d))];
+    const rows = filteredEquipment.map((eq) => {
+      const cols = [eq.code];
+      weekDates.forEach((d) => {
+        const key = getCellKey(eq.id, toLocalDateStr(d));
+        const cell = cells[key];
+        cols.push(cell ? cell.status : '');
+      });
+      return cols;
+    });
+
+    const csvContent = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `생산계획_${mondayStr}_${shift}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function handleClearCell(key: string): void {
@@ -283,8 +366,15 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
         <div className="ml-auto flex items-center gap-2">
           {planId && <Badge variant={planStatus === '확정' ? 'default' : 'secondary'}>{planStatus}</Badge>}
           {loading && <span className="text-muted-foreground text-sm">로딩...</span>}
-          {saveMessage && <span className={cn('text-sm', saveMessage.startsWith('오류') || saveMessage.includes('실패') ? 'text-red-500' : 'text-green-600')}>{saveMessage}</span>}
+          {saveMessage && <span className={cn('text-sm', saveMessage.startsWith('오류') || saveMessage.includes('실패') || saveMessage.includes('오류') ? 'text-red-500' : 'text-green-600')}>{saveMessage}</span>}
           {isReadOnly && <span className="text-sm text-amber-600 font-medium">확정된 계획 (수정 불가)</span>}
+          <Button size="sm" variant="outline" onClick={downloadTemplate}>
+            CSV 다운로드
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading || isReadOnly}>
+            {uploading ? '업로드 중...' : 'CSV 업로드'}
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
           <Button size="sm" onClick={handleSave} disabled={saving || isReadOnly || Object.keys(cells).length === 0} variant={hasChanges ? 'default' : 'outline'}>
             {saving ? '저장 중...' : hasChanges ? '변경사항 저장' : '잠정 저장'}
           </Button>
@@ -294,15 +384,15 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
 
       {/* 그리드 */}
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[70vh]">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-20">
               <tr className="border-b bg-gray-50">
-                <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left font-medium min-w-[80px]">설비</th>
+                <th className="sticky left-0 z-30 bg-gray-50 px-3 py-2 text-left font-medium min-w-[80px]">설비</th>
                 {weekDates.map((d) => {
                   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                   return (
-                    <th key={d.toISOString()} className={cn('min-w-[120px] px-2 py-2 text-center font-medium', isWeekend && 'bg-red-50 text-red-600')}>
+                    <th key={d.toISOString()} className={cn('min-w-[120px] px-2 py-2 text-center font-medium', isWeekend ? 'bg-red-50 text-red-600' : 'bg-gray-50')}>
                       <div>{formatDate(d)}</div>
                       <div className="text-xs font-normal">({formatDay(d)})</div>
                     </th>
@@ -327,9 +417,17 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
 
                     const isCellLocked = isReadOnly || isPastDate(dateStr);
 
+                    const isRecentlyChanged = recentlyChanged.has(key);
+
                     return (
                       <td key={dateStr}
-                        className={cn('border-l px-1 py-1 text-center relative', isWeekend && 'bg-red-50/30', isEditing && 'bg-blue-50', isCellLocked && 'opacity-60 cursor-not-allowed')}
+                        className={cn(
+                          'border-l px-1 py-1 text-center relative',
+                          isWeekend && 'bg-red-50/30',
+                          isEditing && 'bg-blue-50',
+                          isRecentlyChanged && 'ring-2 ring-inset ring-amber-400',
+                          isCellLocked && 'opacity-60 cursor-not-allowed',
+                        )}
                         onClick={() => !isEditing && !isCellLocked && handleCellClick(eq.id, dateStr)}>
 
                         {cell ? (
@@ -348,16 +446,16 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
                         )}
 
                         {/* 편집 팝업 */}
-                        {isEditing && cell && (
+                        {isEditing && (
                           <div className="absolute top-full left-0 z-20 mt-1 w-56 rounded-md border bg-white p-2 shadow-lg text-left"
                             onClick={(e) => e.stopPropagation()}>
                             {/* 상태 선택 */}
                             <div className="mb-2">
-                              <p className="text-xs font-medium text-gray-500 mb-1">상태</p>
+                              <p className="text-xs font-medium text-gray-500 mb-1">상태 선택</p>
                               <div className="flex flex-wrap gap-1">
                                 {ALL_STATUSES.map((s) => (
-                                  <button key={s} onClick={() => handleStatusChange(key, s)}
-                                    className={cn('rounded px-1.5 py-0.5 text-xs', cell.status === s ? STATUS_COLORS[s] + ' ring-1 ring-gray-400' : 'bg-gray-50 hover:bg-gray-100')}>
+                                  <button key={s} onClick={() => handleSetStatus(eq.id, dateStr, s)}
+                                    className={cn('rounded px-1.5 py-0.5 text-xs', cell?.status === s ? STATUS_COLORS[s] + ' ring-1 ring-gray-400' : 'bg-gray-50 hover:bg-gray-100')}>
                                     {s}
                                   </button>
                                 ))}
@@ -365,7 +463,7 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
                             </div>
 
                             {/* 제품 선택 (가동일 때만) */}
-                            {cell.status === '가동' && (
+                            {cell?.status === '가동' && (
                               <div className="mb-2">
                                 <p className="text-xs font-medium text-gray-500 mb-1">생산 제품</p>
                                 {linkedProducts.length > 0 ? (
@@ -390,10 +488,12 @@ export function ProductionPlanGrid({ equipment, products }: Props): React.ReactE
                             )}
 
                             <div className="flex justify-between">
-                              <button onClick={() => handleClearCell(key)}
-                                className="text-xs text-red-500 hover:text-red-700">초기화</button>
+                              {cell && (
+                                <button onClick={() => handleClearCell(key)}
+                                  className="text-xs text-red-500 hover:text-red-700">초기화</button>
+                              )}
                               <button onClick={() => setEditingCell(null)}
-                                className="text-xs text-gray-500 hover:text-gray-700">닫기</button>
+                                className="text-xs text-gray-500 hover:text-gray-700 ml-auto">닫기</button>
                             </div>
                           </div>
                         )}

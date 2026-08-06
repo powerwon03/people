@@ -12,23 +12,48 @@ type EmployeeItem = {
   department: string;
   shift_group: string;
   role: string;
+  affiliation: string;
 };
 
 type Props = {
   employees: EmployeeItem[];
 };
 
-type ShiftType = '주' | '야' | '휴' | '특근' | '연차';
+type ShiftType = '주' | '야' | '휴';
 
 const SHIFT_COLORS: Record<string, string> = {
   '주': 'bg-blue-100 text-blue-800',
   '야': 'bg-gray-800 text-white',
   '휴': 'bg-gray-100 text-gray-400',
-  '특근': 'bg-green-100 text-green-800',
-  '연차': 'bg-orange-100 text-orange-800',
 };
 
-const SHIFT_CYCLE: ShiftType[] = ['주', '야', '휴', '특근', '연차'];
+const SHIFT_CYCLE: ShiftType[] = ['주', '야', '휴'];
+
+type RoleFilter = 'all' | '반장&OP' | '운반&포장' | '검사원';
+
+const ROLE_FILTERS: { value: RoleFilter; label: string; description: string }[] = [
+  { value: 'all', label: '전체', description: '전체 인원' },
+  { value: '반장&OP', label: '반장 & OP', description: '새한소속 - 반장, OP' },
+  { value: '운반&포장', label: '운반 & 포장', description: '새한소속 - 운반포장' },
+  { value: '검사원', label: '검사원', description: '협력사 - 검사원' },
+];
+
+function matchesRoleFilter(emp: EmployeeItem, filter: RoleFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === '반장&OP') return emp.role === '반장' || emp.role === 'OP';
+  if (filter === '운반&포장') return emp.role === '운반포장';
+  if (filter === '검사원') return emp.role === '검사원';
+  return true;
+}
+
+type AffiliationFilter = 'all' | '새한' | '협력사';
+
+function matchesAffiliationFilter(emp: EmployeeItem, filter: AffiliationFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === '새한') return emp.affiliation === '새한';
+  if (filter === '협력사') return emp.affiliation !== '새한';
+  return true;
+}
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -42,6 +67,8 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
   const [year] = useState(2026);
   const [month, setMonth] = useState(new Date().getMonth());
   const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [selectedRole, setSelectedRole] = useState<RoleFilter>('all');
+  const [selectedAffiliation, setSelectedAffiliation] = useState<AffiliationFilter>('all');
   const [scheduleMap, setScheduleMap] = useState<Record<string, ShiftType>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -51,9 +78,12 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
     return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
   }, [year, month, daysInMonth]);
 
-  const filtered = employees.filter(
-    (e) => selectedDept === 'all' || e.department === selectedDept,
-  );
+  const filtered = employees.filter((e) => {
+    if (selectedDept !== 'all' && e.department !== selectedDept) return false;
+    if (!matchesRoleFilter(e, selectedRole)) return false;
+    if (!matchesAffiliationFilter(e, selectedAffiliation)) return false;
+    return true;
+  });
 
   // DB에서 월별 스케줄 로드
   const loadSchedules = useCallback(async (): Promise<void> => {
@@ -112,7 +142,7 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
       let night = 0;
       filtered.forEach((emp) => {
         const shift = scheduleMap[`${emp.id}_${dateStr}`];
-        if (shift === '주' || shift === '특근') day++;
+        if (shift === '주') day++;
         if (shift === '야') night++;
       });
       return { day, night };
@@ -141,6 +171,28 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
             className={cn('rounded-md px-3 py-1.5 text-sm font-medium',
               selectedDept === dept ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
             {dept === 'all' ? '전체' : dept}
+          </button>
+        ))}
+      </div>
+
+      {/* 역할별 구분 + 소속 필터 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-gray-500 mr-1">역할:</span>
+        {ROLE_FILTERS.map((rf) => (
+          <button key={rf.value} onClick={() => setSelectedRole(rf.value)}
+            title={rf.description}
+            className={cn('rounded-md px-2.5 py-1 text-xs font-medium',
+              selectedRole === rf.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+            {rf.label}
+          </button>
+        ))}
+        <span className="mx-2 text-gray-300">|</span>
+        <span className="text-xs font-medium text-gray-500 mr-1">소속:</span>
+        {(['all', '새한', '협력사'] as AffiliationFilter[]).map((af) => (
+          <button key={af} onClick={() => setSelectedAffiliation(af)}
+            className={cn('rounded-md px-2.5 py-1 text-xs font-medium',
+              selectedAffiliation === af ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+            {af === 'all' ? '전체' : af}
           </button>
         ))}
         <span className="text-muted-foreground ml-auto self-center text-sm">
@@ -228,10 +280,10 @@ export function AnnualScheduleView({ employees }: Props): React.ReactElement {
         {Object.entries(SHIFT_COLORS).map(([type, color]) => (
           <span key={type} className="flex items-center gap-1">
             <span className={cn('inline-block h-4 w-4 rounded', color)}></span>
-            {type === '주' ? '주간' : type === '야' ? '야간' : type === '휴' ? '휴무' : type === '특근' ? '특근' : '연차'}
+            {type === '주' ? '주간' : type === '야' ? '야간' : '휴무'}
           </span>
         ))}
-        <span className="text-muted-foreground ml-2">셀 클릭으로 변경 (자동 저장)</span>
+        <span className="text-muted-foreground ml-2">셀 클릭: 주 → 야 → 휴 순환 (자동 저장)</span>
       </div>
     </div>
   );

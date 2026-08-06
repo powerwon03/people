@@ -6,7 +6,7 @@ export default async function AnnualSchedulePage(): Promise<React.ReactElement> 
 
   const { data: employees } = await supabase
     .from('saehan_employees')
-    .select('id, name, department, shift_group, role')
+    .select('id, name, department, shift_group, role, affiliation')
     .eq('status', '재직')
     .order('department')
     .order('shift_group')
